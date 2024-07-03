@@ -80,12 +80,12 @@ async function playWrightInit() {
 //   });
 // }
 
-async function isReadyMiddleWare(req, res, next) {
-  if (!ready) {
-    await waitForReady();
-  }
-  return next();
-}
+// async function isReadyMiddleWare(req, res, next) {
+//   if (!ready) {
+//     await waitForReady();
+//   }
+//   return next();
+// }
 
 app.get("/", (req, res) => {
   res.json({
@@ -161,7 +161,7 @@ async function scrapeAndAutomateChat(prompt) {
     console.log("Lazy Fix");
     text = await lazyLoadingFix();
   }
-  let parsedText = text.replace("ChatGPT\nChatGPT", "");
+  let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
   await page.screenshot({ path: "prompt2.png", fullPage: true });
   console.log("Prompt response: ", parsedText);
   await stayLoggedOut();
