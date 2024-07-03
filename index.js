@@ -39,7 +39,7 @@ const processQueue = () => {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded());
-// app.use(isReadyMiddleWare);
+app.use(isReadyMiddleWare);
 app.use(sequentialMiddleware);
 
 async function playWrightInit() {
@@ -68,24 +68,23 @@ async function playWrightInit() {
   ready = true;
 }
 
-// function waitForReady(timeout = 1000) {
-//   return new Promise((resolve) => {
-//     const interval = setInterval(() => {
-//       if (ready) {
-//         clearInterval(interval);
-//         resolve();
-//       }
-//       console.log("loading...");
-//     }, timeout);
-//   });
-// }
+function waitForReady(timeout = 1000) {
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (ready) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, timeout);
+  });
+}
 
-// async function isReadyMiddleWare(req, res, next) {
-//   if (!ready) {
-//     await waitForReady();
-//   }
-//   return next();
-// }
+async function isReadyMiddleWare(req, res, next) {
+  if (!ready) {
+    await waitForReady();
+  }
+  return next();
+}
 
 app.get("/", (req, res) => {
   res.json({
@@ -99,6 +98,8 @@ app.post("/start", async (req, res) => {
     res.status(400).json({ message: "Prompt is required" });
   }
   await playWrightInit();
+  const promptResult = await scrapeAndAutomateChat(prompt.toString());
+  return res.send(promptResult);
 });
 app.post("/conversation", async (req, res) => {
   const { prompt } = req.body;
