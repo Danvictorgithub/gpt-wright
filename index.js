@@ -8,16 +8,22 @@ const express = require("express");
 let browser = null;
 let page = null;
 let conversation = 1;
-let ready = false;
 
 let requestQueue = [];
 let isProcessing = false;
 
+async function initializeServer() {
+  return new Promise(async (resolve) => {
+    await playWrightInit();
+    await resolve();
+  });
+}
+
 // changed to sequential since queue concurrent will cause issues in processing texts
-const sequentialMiddleware = (req, res, next) => {
+function sequentialMiddleware(req, res, next) {
   requestQueue.push({ req, res, next });
   processQueue();
-};
+}
 
 const processQueue = () => {
   if (isProcessing || requestQueue.length === 0) {
@@ -39,7 +45,6 @@ const processQueue = () => {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded());
-app.use(isReadyMiddleWare);
 app.use(sequentialMiddleware);
 
 async function playWrightInit() {
@@ -68,24 +73,6 @@ async function playWrightInit() {
   ready = true;
 }
 
-function waitForReady(timeout = 1000) {
-  return new Promise((resolve) => {
-    const interval = setInterval(() => {
-      if (ready) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, timeout);
-  });
-}
-
-async function isReadyMiddleWare(req, res, next) {
-  if (!ready) {
-    await waitForReady();
-  }
-  return next();
-}
-
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to ChatGPT API Playwright reverse proxy made by Deviate",
@@ -108,11 +95,6 @@ app.post("/conversation", async (req, res) => {
   }
   const promptResult = await scrapeAndAutomateChat(prompt.toString());
   return res.send(promptResult);
-});
-
-app.listen(8080, async () => {
-  await playWrightInit();
-  console.log("Listening to port 8080");
 });
 
 async function stayLoggedOut() {
@@ -168,6 +150,17 @@ async function scrapeAndAutomateChat(prompt) {
   await stayLoggedOut();
   return parsedText;
 }
+
+initializeServer()
+  .then(() => {
+    const port = 8080;
+    app.listen(port, () => {
+      console.log(`Server is listening on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Error during server initialization:", err);
+  });
 
 // scrapeAndAutomateChat().catch((error) =>
 //   console.error("Error in scraping chat:", error)
