@@ -12,3 +12,7 @@ POST /start - Restarts chat wtih starter prompt [ requires on request-body {prom
 
 
 Currently only supports one chat conversation
+
+Free Cloud deployment
+
+https://gpt-wright-one.onrender.com
