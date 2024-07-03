@@ -39,7 +39,7 @@ const processQueue = () => {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded());
-app.use(isReadyMiddleWare);
+// app.use(isReadyMiddleWare);
 app.use(sequentialMiddleware);
 
 async function playWrightInit() {
@@ -68,17 +68,17 @@ async function playWrightInit() {
   ready = true;
 }
 
-function waitForReady(timeout = 1000) {
-  return new Promise((resolve) => {
-    const interval = setInterval(() => {
-      if (ready) {
-        clearInterval(interval);
-        resolve();
-      }
-      console.log("loading...");
-    }, timeout);
-  });
-}
+// function waitForReady(timeout = 1000) {
+//   return new Promise((resolve) => {
+//     const interval = setInterval(() => {
+//       if (ready) {
+//         clearInterval(interval);
+//         resolve();
+//       }
+//       console.log("loading...");
+//     }, timeout);
+//   });
+// }
 
 async function isReadyMiddleWare(req, res, next) {
   if (!ready) {
