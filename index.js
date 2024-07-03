@@ -56,7 +56,7 @@ app.post("/conversation", async (req, res) => {
   if (!prompt) {
     req.status(400).json({ message: "Prompt is required" });
   }
-  const promptResult = await scrapeAndAutomateChat(prompt);
+  const promptResult = await scrapeAndAutomateChat(prompt.toString());
   res.send(promptResult);
 });
 
