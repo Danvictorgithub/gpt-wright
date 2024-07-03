@@ -9,11 +9,38 @@ let browser = null;
 let page = null;
 let conversation = 1;
 let ready = false;
-let onQueue = false;
+
+let requestQueue = [];
+let isProcessing = false;
+
+// changed to sequential since queue concurrent will cause issues in processing texts
+const sequentialMiddleware = (req, res, next) => {
+  requestQueue.push({ req, res, next });
+  processQueue();
+};
+
+const processQueue = () => {
+  if (isProcessing || requestQueue.length === 0) {
+    return;
+  }
+
+  isProcessing = true;
+
+  const { req, res, next } = requestQueue.shift();
+
+  res.on("finish", () => {
+    isProcessing = false;
+    processQueue();
+  });
+
+  next();
+};
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded());
+app.use(isReadyMiddleWare);
+app.use(sequentialMiddleware);
 
 async function playWrightInit() {
   //Restarts if possible
@@ -53,36 +80,12 @@ function waitForReady(timeout = 1000) {
   });
 }
 
-function waitForQueue(timeout = 1000) {
-  return new Promise((resolve) => {
-    const interval = setInterval(() => {
-      if (ready) {
-        clearInterval(interval);
-        resolve();
-      }
-      console.log("loading queue...");
-    }, timeout);
-  });
-}
 async function isReadyMiddleWare(req, res, next) {
-  await waitForQueue();
-  if (ready) {
-    return next();
-  } else {
-    return res.status(400).json({ message: "Playwright is not ready" });
-  }
-}
-
-async function onQueueMiddleWare(req, res, next) {
-  if (onQueue) {
+  if (!ready) {
     await waitForReady();
   }
-  onQueue = false;
   return next();
 }
-
-app.use(isReadyMiddleWare);
-app.use(onQueueMiddleWare);
 
 app.get("/", (req, res) => {
   res.json({
@@ -131,12 +134,14 @@ async function lazyLoadingFix() {
 }
 
 async function scrapeAndAutomateChat(prompt) {
+  console.log("Processing prompt: ", prompt);
   // ChatGPT has a data-testid=conversation-turn-[number] where number start as 2 or the user response.
   // 'even' number identifies the user while 'odd' number are chatgpt prompt
 
   // Example: Sending initial message
   await page.type("#prompt-textarea", prompt);
   // allows chatgpt react to update its input
+  await page.screenshot({ path: "prompt1.png", fullPage: true });
   await page.getByTestId("send-button").click();
   await page.waitForSelector('[aria-label="Stop generating"]');
   // 5 minutes prompt limit
@@ -157,10 +162,8 @@ async function scrapeAndAutomateChat(prompt) {
     text = await lazyLoadingFix();
   }
   let parsedText = text.replace("ChatGPT\nChatGPT", "");
-  //   await setTimeout(() => {}, 10000);
   await page.screenshot({ path: "prompt2.png", fullPage: true });
-
-  await page.screenshot();
+  console.log("Prompt response: ", parsedText);
   await stayLoggedOut();
   return parsedText;
 }
