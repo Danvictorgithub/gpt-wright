@@ -3,6 +3,7 @@ GPT-Wright
 ChatGPT 3.5-turbo reverse proxy with Chromium based PlayWright, Express REST-API
 
 Routes
+
 GET  / - Information or Health Check
 
 POST /conversation - Prompt chat [ requires on request-body {prompt:string} ]
