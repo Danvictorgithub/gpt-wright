@@ -17,5 +17,5 @@ COPY index.js /app/
 RUN npm install
 
 # Run Node index.js file
-CMD [ "npm", "dev" ]
+CMD [ "npm","run", "dev" ]
 # Build  JS to run via Node
