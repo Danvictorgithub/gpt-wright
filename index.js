@@ -10,8 +10,6 @@ let page = null;
 let conversation = 1;
 
 let requestQueue = Promise.resolve();
-let isProcessing = false;
-let canceledRequests = new Set(); // Store IDs of canceled requests
 
 async function playWrightInit() {
   //Restarts if possible
@@ -47,7 +45,7 @@ async function initializeServer() {
 
 // changed to sequential since queue concurrent will cause issues in processing texts
 const sequentialMiddleware = (req, res, next) => {
-  const entry = { req, res, next };
+  const entry = { req, res, next, disconnected: false };
 
   // Start processing the current request after all previous requests have been processed
   requestQueue = requestQueue.then(() => processRequest(entry));
@@ -55,28 +53,53 @@ const sequentialMiddleware = (req, res, next) => {
   // Immediately handle any close events
   res.on("close", () => {
     console.log("Client disconnected");
-    // Ensure the promise chain is not broken by resolving the current request
-    // even if the client has disconnected
     entry.disconnected = true; // Mark the entry as disconnected
   });
 };
 
 const processRequest = ({ req, res, next, disconnected }) => {
   return new Promise((resolve) => {
+    let closeCalled = false; // Flag to track if 'close' was called
+    let finished = false; // Flag to track if 'finish' was called
+    let checkFinishInterval; // Declare the interval variable
+
     // Define a common handler for finishing the request processing
     const done = () => {
-      res.removeListener("finish", done);
-      res.removeListener("close", done);
+      clearInterval(checkFinishInterval); // Clear the interval when done
       resolve(); // Resolve the promise to allow the next request to be processed
     };
 
-    // Attach the handlers
-    res.on("finish", done);
-    // If the request was marked as disconnected, we still want to ensure
-    // that the processing continues, so we don't attach a 'close' listener here
-    // because it's already been handled in the middleware function
+    const finishHandler = () => {
+      console.log("Finish handler called");
+      finished = true;
+      // If 'close' was called before 'finish', ensure 'done' is called only once
+      if (closeCalled) {
+        done();
+      }
+    };
 
-    // Call the next middleware or route handler
+    const closeHandler = () => {
+      console.log("Close handler called");
+      closeCalled = true;
+      if (!finished) {
+        // Wait for finish event to call done
+        checkFinishInterval = setInterval(() => {
+          if (res.writableFinished) {
+            finishHandler();
+          }
+        }, 50); // Check every 50ms
+      } else {
+        // If writable has finished, call done immediately
+        done();
+      }
+    };
+
+    // Attach the handlers
+    res.on("finish", finishHandler);
+    res.on("close", closeHandler);
+
+    // If the request was marked as disconnected, we still want to ensure
+    // that the processing continues
     if (!disconnected) {
       next();
     } else {
