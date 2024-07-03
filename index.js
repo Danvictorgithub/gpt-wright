@@ -9,43 +9,9 @@ let browser = null;
 let page = null;
 let conversation = 1;
 
-let requestQueue = [];
+let requestQueue = Promise.resolve();
 let isProcessing = false;
-
-async function initializeServer() {
-  return new Promise(async (resolve) => {
-    await playWrightInit();
-    await resolve();
-  });
-}
-
-// changed to sequential since queue concurrent will cause issues in processing texts
-function sequentialMiddleware(req, res, next) {
-  requestQueue.push({ req, res, next });
-  processQueue();
-}
-
-const processQueue = () => {
-  if (isProcessing || requestQueue.length === 0) {
-    return;
-  }
-
-  isProcessing = true;
-
-  const { req, res, next } = requestQueue.shift();
-
-  res.on("finish", () => {
-    isProcessing = false;
-    processQueue();
-  });
-
-  next();
-};
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded());
-app.use(sequentialMiddleware);
+let canceledRequests = new Set(); // Store IDs of canceled requests
 
 async function playWrightInit() {
   //Restarts if possible
@@ -72,6 +38,59 @@ async function playWrightInit() {
   console.log("PlayWright is ready");
   ready = true;
 }
+async function initializeServer() {
+  return new Promise(async (resolve) => {
+    await playWrightInit();
+    await resolve();
+  });
+}
+
+// changed to sequential since queue concurrent will cause issues in processing texts
+const sequentialMiddleware = (req, res, next) => {
+  const entry = { req, res, next };
+
+  // Start processing the current request after all previous requests have been processed
+  requestQueue = requestQueue.then(() => processRequest(entry));
+
+  // Immediately handle any close events
+  res.on("close", () => {
+    console.log("Client disconnected");
+    // Ensure the promise chain is not broken by resolving the current request
+    // even if the client has disconnected
+    entry.disconnected = true; // Mark the entry as disconnected
+  });
+};
+
+const processRequest = ({ req, res, next, disconnected }) => {
+  return new Promise((resolve) => {
+    // Define a common handler for finishing the request processing
+    const done = () => {
+      res.removeListener("finish", done);
+      res.removeListener("close", done);
+      resolve(); // Resolve the promise to allow the next request to be processed
+    };
+
+    // Attach the handlers
+    res.on("finish", done);
+    // If the request was marked as disconnected, we still want to ensure
+    // that the processing continues, so we don't attach a 'close' listener here
+    // because it's already been handled in the middleware function
+
+    // Call the next middleware or route handler
+    if (!disconnected) {
+      next();
+    } else {
+      // If the client disconnected before this point, we manually call `done`
+      // to ensure the promise resolves and the queue continues
+      done();
+    }
+  });
+};
+
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded());
+app.use(sequentialMiddleware);
 
 app.get("/", (req, res) => {
   res.json({
@@ -126,7 +145,9 @@ async function scrapeAndAutomateChat(prompt) {
   // allows chatgpt react to update its input
   await page.screenshot({ path: "prompt1.png", fullPage: true });
   await page.getByTestId("send-button").click();
-  await page.waitForSelector('[aria-label="Stop generating"]');
+  await page.waitForSelector('[aria-label="Stop generating"]', {
+    timeout: 300000,
+  });
   // 5 minutes prompt limit
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: 300000,
