@@ -8,6 +8,8 @@ const express = require("express");
 let browser = null;
 let page = null;
 let conversation = 1;
+let ready = false;
+let onQueue = false;
 
 const app = express();
 app.use(express.json());
@@ -33,10 +35,54 @@ async function playWrightInit() {
   const checkContent = await page.getByText("Get started");
   if (await checkContent.isVisible()) {
     console.log("Re run");
-    await playWrightInit();
+    return await playWrightInit();
   }
   console.log("PlayWright is ready");
+  ready = true;
 }
+
+function waitForReady(timeout = 1000) {
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (ready) {
+        clearInterval(interval);
+        resolve();
+      }
+      console.log("loading...");
+    }, timeout);
+  });
+}
+
+function waitForQueue(timeout = 1000) {
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (ready) {
+        clearInterval(interval);
+        resolve();
+      }
+      console.log("loading queue...");
+    }, timeout);
+  });
+}
+async function isReadyMiddleWare(req, res, next) {
+  await waitForQueue();
+  if (ready) {
+    return next();
+  } else {
+    return res.status(400).json({ message: "Playwright is not ready" });
+  }
+}
+
+async function onQueueMiddleWare(req, res, next) {
+  if (onQueue) {
+    await waitForReady();
+  }
+  onQueue = false;
+  return next();
+}
+
+app.use(isReadyMiddleWare);
+app.use(onQueueMiddleWare);
 
 app.get("/", (req, res) => {
   res.json({
@@ -54,10 +100,10 @@ app.post("/start", async (req, res) => {
 app.post("/conversation", async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) {
-    res.status(400).json({ message: "Prompt is required" });
+    return res.status(400).json({ message: "Prompt is required" });
   }
   const promptResult = await scrapeAndAutomateChat(prompt.toString());
-  res.send(promptResult);
+  return res.send(promptResult);
 });
 
 app.listen(8080, async () => {
