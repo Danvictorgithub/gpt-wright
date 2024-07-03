@@ -16,9 +16,6 @@ COPY index.js /app/
 # Install Deps
 RUN npm install
 
-# Build  JS to run via Node
-RUN npm run build
-
 # Run Node index.js file
 CMD [ "npm", "dev" ]
 # Build  JS to run via Node
