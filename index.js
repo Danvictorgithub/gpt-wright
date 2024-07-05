@@ -1,10 +1,13 @@
 const { chromium } = require("playwright-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
+let dotenv = require("dotenv");
+dotenv.config();
+console.log(process.env.DEBUG);
 chromium.use(stealth);
 
 const express = require("express");
 
-const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes changed from 15 minutes because render server is crying
 
 // states
 let browser = null;
@@ -29,10 +32,12 @@ async function playWrightInit(chatId) {
     console.log("Re Run");
     await playWrightInit(chatId);
   });
-  await page.screenshot({
-    path: `screenshots/${chatId}_init.png`,
-    fullPage: true,
-  });
+  process.env.DEBUG == "false"
+    ? null
+    : await page.screenshot({
+        path: `screenshots/${chatId}_init.png`,
+        fullPage: true,
+      });
   await stayLoggedOut(page);
   // check redirect
   const checkContent = await page.getByText("Get started");
@@ -194,18 +199,22 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   const { page, conversation } = chatSession;
 
   await page.type("#prompt-textarea", prompt);
-  await page.screenshot({
-    path: `/screenshots/${chatId}_prompt1.png`,
-    fullPage: true,
-  });
+  process.env.DEBUG == "false"
+    ? null
+    : await page.screenshot({
+        path: `screenshots/${chatId}_prompt1.png`,
+        fullPage: true,
+      });
   await page.getByTestId("send-button").click();
   await page.waitForSelector('[aria-label="Stop generating"]', {
     timeout: 300000,
   });
-  await page.screenshot({
-    path: `/screenshots/${chatId}_prompt2.png`,
-    fullPage: true,
-  });
+  process.env.DEBUG == "false"
+    ? null
+    : await page.screenshot({
+        path: `screenshots/${chatId}_prompt2.png`,
+        fullPage: true,
+      });
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: 300000,
   });
@@ -223,10 +232,12 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     text = await lazyLoadingFix(page, chatSession.conversation);
   }
   let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
-  await page.screenshot({
-    path: `/screenshots/${chatId}_prompt3.png`,
-    fullPage: true,
-  });
+  process.env.DEBUG == "false"
+    ? null
+    : await page.screenshot({
+        path: `screenshots/${chatId}_prompt3.png`,
+        fullPage: true,
+      });
   console.log(`Prompt response for chat ${chatId}: `, parsedText);
   await stayLoggedOut(page);
   return parsedText;
