@@ -52,7 +52,12 @@ async function playWrightInit(chatId) {
       closeChatSession(chatId);
     }, INACTIVITY_TIMEOUT),
   };
-
+  if (process.env.DEBUG == "true") {
+    await page.screenshot({
+      path: `screenshots/init-${chatId}.png`,
+    });
+    console.log(`screenshots/init-${chatId}.png`);
+  }
   requestQueues[chatId] = Promise.resolve();
   console.log(`Page is ready for chat ${chatId}`);
 }
