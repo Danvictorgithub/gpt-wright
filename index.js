@@ -5,7 +5,6 @@ const express = require("express");
 
 dotenv.config();
 chromium.use(stealth);
-
 const INACTIVITY_TIMEOUT =
   (process.env.INACTIVITY_TIMEOUT_MINUTE
     ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
@@ -56,6 +55,7 @@ async function playWrightInit(chatId) {
   };
 
   requestQueues[chatId] = Promise.resolve();
+  console.log(`Page is ready for chat ${chatId}`);
 }
 
 async function closeChatSession(chatId) {
@@ -182,23 +182,58 @@ async function lazyLoadingFix(page, conversation) {
 }
 
 async function scrapeAndAutomateChat(chatId, prompt) {
-  console.log(`Processing prompt for chat ${chatId}: `, prompt);
+  console.log(`Processing prompt for chat ${chatId}: \n`, prompt);
   const chatSession = conversations[chatId];
   const { page, conversation } = chatSession;
-
+  await stayLoggedOut(page);
+  if (process.env.DEBUG == "true") {
+    await page.screenshot({
+      path: `screenshots/1before-writing-${chatId}.png`,
+    });
+    console.log(`screenshots/1before-writing-${chatId}.png`);
+  }
   await page.type("#prompt-textarea", prompt, { timeout: 300000 });
+  if (process.env.DEBUG == "true") {
+    await page.screenshot({
+      path: `screenshots/2writing-before-clicking-${chatId}.png`,
+    });
+    console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
+  }
+  // Wait for the ".result-streaming" element to be hidden
+  await page.waitForSelector(".result-streaming", {
+    state: "hidden",
+    timeout: 300000,
+  });
+  // await page.getByTestId("send-button", { timeout: 300000 }).click();
+  // Wait for the send button to be present in the DOM
+  await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
+    timeout: 300000,
+  });
 
-  await page.getByTestId("send-button", { timeout: 300000 }).click();
+  // Then click the button
+  await page.click('[data-testid="send-button"]', { timeout: 300000 });
+  if (process.env.DEBUG == "true") {
+    await page.screenshot({
+      path: `screenshots/3after-clicking-${chatId}.png`,
+    });
+    console.log(`screenshots/3after-clicking-${chatId}.png`);
+  }
   await page.waitForSelector('[aria-label="Stop generating"]', {
     timeout: 300000,
   });
-
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: 300000,
   });
-
-  const recheck = await page.locator(".result-streaming");
-  while (await recheck.isVisible()) {}
+  // Wait for the loading indicator (button > div > svg) to be hidden
+  await page.waitForSelector("button > div > svg", {
+    state: "hidden",
+    timeout: 300000,
+  });
+  // Wait for the ".result-streaming" element to be hidden
+  await page.waitForSelector(".result-streaming", {
+    state: "hidden",
+    timeout: 300000,
+  });
 
   chatSession.conversation += 2;
   let text = await page
@@ -210,7 +245,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   }
   let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
 
-  console.log(`Prompt response for chat ${chatId}: `, parsedText);
+  console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
   await stayLoggedOut(page);
   return parsedText;
 }
