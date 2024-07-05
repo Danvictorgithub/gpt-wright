@@ -197,7 +197,9 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   const chatSession = conversations[chatId];
   const { page, conversation } = chatSession;
 
-  await page.type("#prompt-textarea", prompt);
+  await page.type("#prompt-textarea", prompt, {
+    timeout: 300000,
+  });
   process.env.DEBUG == "false"
     ? null
     : await page.screenshot({
