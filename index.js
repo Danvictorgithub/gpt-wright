@@ -2,7 +2,6 @@ const { chromium } = require("playwright-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
 let dotenv = require("dotenv");
 dotenv.config();
-console.log(process.env.DEBUG);
 chromium.use(stealth);
 
 const express = require("express");
@@ -205,7 +204,11 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         path: `screenshots/${chatId}_prompt1.png`,
         fullPage: true,
       });
-  await page.getByTestId("send-button").click();
+  await page
+    .getByTestId("send-button", {
+      timeout: 300000,
+    })
+    .click();
   await page.waitForSelector('[aria-label="Stop generating"]', {
     timeout: 300000,
   });
