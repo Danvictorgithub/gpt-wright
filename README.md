@@ -6,9 +6,9 @@
 
 GET / - Information or Health Check
 
-POST /conversation - Prompt chat [ requires on request-body {prompt:string} ]
-
 POST /start - Generates a Chat ID - kills inactivity after 15 mins
+
+POST /conversation - Prompt chat [ requires on request-body {prompt:string} ]
 
 Currently only supports one chat conversation
 
