@@ -16,6 +16,6 @@ COPY index.js /app/
 # Install Deps
 RUN npm install
 
-# Run Node index.js file
-CMD [ "node","." ]
+# Run Node index.js file and set limit to 500MB
+CMD [ "node",".","--max-old-space-size=500" ]
 # Build  JS to run via Node
