@@ -133,7 +133,7 @@ const processRequest = ({ req, res, next, disconnected }) => {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use("/screenshots", express.static("screenshots"));
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to ChatGPT API Playwright reverse proxy by Deviate",
