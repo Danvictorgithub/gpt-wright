@@ -11,11 +11,14 @@ let browser = null;
 let conversations = {};
 let requestQueues = {}; // Separate queues for each chat session
 
-async function playWrightInit(chatId) {
+async function chromiumInit() {
   if (!browser) {
     console.log("Launching Chromium");
     browser = await chromium.launch();
   }
+}
+
+async function playWrightInit(chatId) {
   if (conversations[chatId] && conversations[chatId].page) {
     console.log(`Closing existing page for chat ${chatId}`);
     await conversations[chatId].page.close();
@@ -27,7 +30,7 @@ async function playWrightInit(chatId) {
     await playWrightInit(chatId);
   });
   await page.screenshot({
-    path: `/screenshots/${chatId}_init.png`,
+    path: `screenshots/${chatId}_init.png`,
     fullPage: true,
   });
   await stayLoggedOut(page);
@@ -244,13 +247,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 
-initializeServer()
-  .then(() => {
-    const port = 8080;
-    app.listen(port, () => {
-      console.log(`Server is listening on port ${port}`);
+chromiumInit().then(() => {
+  initializeServer()
+    .then(() => {
+      const port = 8080;
+      app.listen(port, () => {
+        console.log(`Server is listening on port ${port}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Error during server initialization:", err);
     });
-  })
-  .catch((err) => {
-    console.error("Error during server initialization:", err);
-  });
+});
