@@ -199,7 +199,9 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     console.log(`screenshots/1before-writing-${chatId}.png`);
   }
   await page.type("#prompt-textarea", prompt, {
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
   if (process.env.DEBUG == "true") {
     await page.screenshot({
@@ -210,17 +212,23 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   // Wait for the ".result-streaming" element to be hidden
   await page.waitForSelector(".result-streaming", {
     state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
-  // await page.getByTestId("send-button", { timeout: (process.env.WAIT_TIMEOUT) ? process.env.WAIT_TIMEOUT : 300000  }).click();
+  // await page.getByTestId("send-button", { timeout: (process.env.WAIT_TIMEOUT) ? parseInt(process.env.WAIT_TIMEOUT) : 300000  }).click();
   // Wait for the send button to be present in the DOM
   await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
 
   // Then click the button
   await page.click('[data-testid="send-button"]', {
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
   if (process.env.DEBUG == "true") {
     await page.screenshot({
@@ -229,20 +237,28 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     console.log(`screenshots/3after-clicking-${chatId}.png`);
   }
   await page.waitForSelector('[aria-label="Stop generating"]', {
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
   await page.waitForSelector('[data-testid="send-button"]', {
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
   // Wait for the loading indicator (button > div > svg) to be hidden
   await page.waitForSelector("button > div > svg", {
     state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
   // Wait for the ".result-streaming" element to be hidden
   await page.waitForSelector(".result-streaming", {
     state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
   });
 
   chatSession.conversation += 2;
