@@ -4,107 +4,111 @@ chromium.use(stealth);
 
 const express = require("express");
 
-//states
+// states
 let browser = null;
-let page = null;
-let conversation = 1;
+let conversations = {};
+let requestQueues = {}; // Separate queues for each chat session
 
-let requestQueue = Promise.resolve();
-
-async function playWrightInit() {
-  //Restarts if possible
-  if (browser) {
-    console.log("restarting");
-    browser.close();
+async function playWrightInit(chatId) {
+  if (!browser) {
+    console.log("Launching Chromium");
+    browser = await chromium.launch();
   }
-  conversation = 1;
-  console.log("Launching Chromium");
-  browser = await chromium.launch();
-  page = await browser.newPage();
+  if (conversations[chatId] && conversations[chatId].page) {
+    console.log(`Closing existing page for chat ${chatId}`);
+    await conversations[chatId].page.close();
+  }
+  console.log(`Creating new page for chat ${chatId}`);
+  const page = await browser.newPage();
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
-    await playWrightInit();
+    await playWrightInit(chatId);
   });
-  await page.screenshot({ path: "init.png", fullPage: true });
-  await stayLoggedOut();
+  await page.screenshot({
+    path: `/screenshots/${chatId}_init.png`,
+    fullPage: true,
+  });
+  await stayLoggedOut(page);
   // check redirect
   const checkContent = await page.getByText("Get started");
   if (await checkContent.isVisible()) {
     console.log("Re run");
-    return await playWrightInit();
+    return await playWrightInit(chatId);
   }
-  console.log("PlayWright is ready");
-  ready = true;
+  console.log(`PlayWright is ready for chat ${chatId}`);
+  conversations[chatId] = { page, conversation: 1, ready: true };
+  requestQueues[chatId] = Promise.resolve();
 }
+
 async function initializeServer() {
   return new Promise(async (resolve) => {
-    await playWrightInit();
-    await resolve();
+    resolve();
   });
 }
 
-// changed to sequential since queue concurrent will cause issues in processing texts
 const sequentialMiddleware = (req, res, next) => {
+  const chatId = req.body.chatId;
+  if (!chatId) {
+    return res.status(400).json({ message: "Chat ID is required" });
+  }
+
   const entry = { req, res, next, disconnected: false };
 
-  // Start processing the current request after all previous requests have been processed
-  requestQueue = requestQueue.then(() => processRequest(entry));
+  // Ensure a queue exists for this chatId
+  if (!requestQueues[chatId]) {
+    requestQueues[chatId] = Promise.resolve();
+  }
 
-  // Immediately handle any close events
+  // Add the request to the specific chat session's queue
+  requestQueues[chatId] = requestQueues[chatId].then(() =>
+    processRequest(entry)
+  );
+
   res.on("close", () => {
-    console.log("Client disconnected");
-    entry.disconnected = true; // Mark the entry as disconnected
+    console.log(`Client disconnected from chat ${chatId}`);
+    entry.disconnected = true;
   });
 };
 
 const processRequest = ({ req, res, next, disconnected }) => {
   return new Promise((resolve) => {
-    let closeCalled = false; // Flag to track if 'close' was called
-    let finished = false; // Flag to track if 'finish' was called
-    let checkFinishInterval; // Declare the interval variable
+    let closeCalled = false;
+    let finished = false;
+    let checkFinishInterval;
 
-    // Define a common handler for finishing the request processing
     const done = () => {
-      clearInterval(checkFinishInterval); // Clear the interval when done
-      resolve(); // Resolve the promise to allow the next request to be processed
+      clearInterval(checkFinishInterval);
+      resolve();
     };
 
     const finishHandler = () => {
-      console.log("Finish handler called");
+      // console.log("Finish handler called");
       finished = true;
-      // If 'close' was called before 'finish', ensure 'done' is called only once
       if (closeCalled) {
         done();
       }
     };
 
     const closeHandler = () => {
-      console.log("Close handler called");
+      // console.log("Close handler called");
       closeCalled = true;
       if (!finished) {
-        // Wait for finish event to call done
         checkFinishInterval = setInterval(() => {
           if (res.writableFinished) {
             finishHandler();
           }
-        }, 50); // Check every 50ms
+        }, 50);
       } else {
-        // If writable has finished, call done immediately
         done();
       }
     };
 
-    // Attach the handlers
     res.on("finish", finishHandler);
     res.on("close", closeHandler);
 
-    // If the request was marked as disconnected, we still want to ensure
-    // that the processing continues
     if (!disconnected) {
       next();
     } else {
-      // If the client disconnected before this point, we manually call `done`
-      // to ensure the promise resolves and the queue continues
       done();
     }
   });
@@ -112,8 +116,7 @@ const processRequest = ({ req, res, next, disconnected }) => {
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded());
-app.use(sequentialMiddleware);
+app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
   res.json({
@@ -122,78 +125,100 @@ app.get("/", (req, res) => {
 });
 
 app.post("/start", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    res.status(400).json({ message: "Prompt is required" });
-  }
-  await playWrightInit();
-  const promptResult = await scrapeAndAutomateChat(prompt.toString());
-  return res.send(promptResult);
+  const chatId = generateUniqueChatId();
+  await playWrightInit(chatId);
+  res.json({ chatId });
 });
-app.post("/conversation", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return res.status(400).json({ message: "Prompt is required" });
+
+app.post("/conversation", sequentialMiddleware, async (req, res) => {
+  const { chatId, prompt } = req.body;
+  if (!chatId || !prompt) {
+    return res.status(400).json({ message: "Chat ID and prompt are required" });
   }
-  const promptResult = await scrapeAndAutomateChat(prompt.toString());
+  const chatSession = conversations[chatId];
+  if (!chatSession) {
+    return res.status(404).json({ message: "Chat session not found" });
+  }
+  const promptResult = await scrapeAndAutomateChat(chatId, prompt.toString());
   return res.send(promptResult);
 });
 
-async function stayLoggedOut() {
+async function stayLoggedOut(page) {
   const button = await page.getByText("Stay logged out");
   if (await button.isVisible()) {
-    button.click();
-  } else {
+    await button.click();
   }
 }
 
-async function lazyLoadingFix() {
-  const text = await page
+async function lazyLoadingFix(page, conversation) {
+  let text = await page
     .getByTestId(`conversation-turn-${conversation}`)
     .innerText();
   const textCheck = text.split(" ");
   if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
-    return lazyLoadingFix();
+    return lazyLoadingFix(page, conversation);
   }
   return text;
 }
 
-async function scrapeAndAutomateChat(prompt) {
-  console.log("Processing prompt: ", prompt);
-  // ChatGPT has a data-testid=conversation-turn-[number] where number start as 2 or the user response.
-  // 'even' number identifies the user while 'odd' number are chatgpt prompt
+async function scrapeAndAutomateChat(chatId, prompt) {
+  console.log(`Processing prompt for chat ${chatId}: `, prompt);
+  const chatSession = conversations[chatId];
+  const { page, conversation } = chatSession;
 
-  // Example: Sending initial message
   await page.type("#prompt-textarea", prompt);
-  // allows chatgpt react to update its input
-  await page.screenshot({ path: "prompt1.png", fullPage: true });
+  await page.screenshot({
+    path: `/screenshots/${chatId}_prompt1.png`,
+    fullPage: true,
+  });
   await page.getByTestId("send-button").click();
   await page.waitForSelector('[aria-label="Stop generating"]', {
     timeout: 300000,
   });
-  // 5 minutes prompt limit
+  await page.screenshot({
+    path: `/screenshots/${chatId}_prompt2.png`,
+    fullPage: true,
+  });
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: 300000,
   });
 
   const recheck = await page.locator(".result-streaming");
   while (await recheck.isVisible()) {}
-  conversation += 2;
+
+  chatSession.conversation += 2;
   let text = await page
-    .getByTestId(`conversation-turn-${conversation}`)
+    .getByTestId(`conversation-turn-${chatSession.conversation}`)
     .innerText();
-  // Resolves chatgpt ui lazyloading showing blank on first chat
   const textCheck = text.split(" ");
   if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
     console.log("Lazy Fix");
-    text = await lazyLoadingFix();
+    text = await lazyLoadingFix(page, chatSession.conversation);
   }
   let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
-  await page.screenshot({ path: "prompt2.png", fullPage: true });
-  console.log("Prompt response: ", parsedText);
-  await stayLoggedOut();
+  await page.screenshot({
+    path: `/screenshots/${chatId}_prompt3.png`,
+    fullPage: true,
+  });
+  console.log(`Prompt response for chat ${chatId}: `, parsedText);
+  await stayLoggedOut(page);
   return parsedText;
 }
+
+function generateUniqueChatId() {
+  return "chat_" + Math.random().toString(36).substr(2, 9);
+}
+
+// 404 handler middleware
+app.use((req, res, next) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+// General error handler middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Internal server error" });
+});
 
 initializeServer()
   .then(() => {
@@ -205,7 +230,3 @@ initializeServer()
   .catch((err) => {
     console.error("Error during server initialization:", err);
   });
-
-// scrapeAndAutomateChat().catch((error) =>
-//   console.error("Error in scraping chat:", error)
-// );
