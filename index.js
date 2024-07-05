@@ -1,17 +1,18 @@
 const { chromium } = require("playwright-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
-let dotenv = require("dotenv");
+const dotenv = require("dotenv");
+const express = require("express");
+
 dotenv.config();
 chromium.use(stealth);
 
-const express = require("express");
+const INACTIVITY_TIMEOUT = process.env.INACTIVITY_TIMEOUT_MINUTE
+  ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
+  : 5 * 60 * 1000; // 5 minutes
 
-const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes changed from 15 minutes because render server is crying
-
-// states
 let browser = null;
 let conversations = {};
-let requestQueues = {}; // Separate queues for each chat session
+let requestQueues = {};
 
 async function chromiumInit() {
   if (!browser) {
@@ -22,29 +23,25 @@ async function chromiumInit() {
 
 async function playWrightInit(chatId) {
   if (conversations[chatId] && conversations[chatId].page) {
-    console.log(`Closing existing page for chat ${chatId}`);
-    await conversations[chatId].page.close();
+    console.log(`Reusing existing page for chat ${chatId}`);
+    return;
   }
+
   console.log(`Creating new page for chat ${chatId}`);
   const page = await browser.newPage();
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
     await playWrightInit(chatId);
   });
-  process.env.DEBUG == "false"
-    ? null
-    : await page.screenshot({
-        path: `screenshots/${chatId}_init.png`,
-        fullPage: true,
-      });
+
   await stayLoggedOut(page);
-  // check redirect
+
   const checkContent = await page.getByText("Get started");
   if (await checkContent.isVisible()) {
     console.log("Re run");
     return await playWrightInit(chatId);
   }
-  console.log(`PlayWright is ready for chat ${chatId}`);
+
   conversations[chatId] = {
     page,
     conversation: 1,
@@ -54,6 +51,7 @@ async function playWrightInit(chatId) {
       closeChatSession(chatId);
     }, INACTIVITY_TIMEOUT),
   };
+
   requestQueues[chatId] = Promise.resolve();
 }
 
@@ -66,12 +64,6 @@ async function closeChatSession(chatId) {
   }
 }
 
-async function initializeServer() {
-  return new Promise(async (resolve) => {
-    resolve();
-  });
-}
-
 const sequentialMiddleware = (req, res, next) => {
   const chatId = req.body.chatId;
   if (!chatId) {
@@ -80,12 +72,10 @@ const sequentialMiddleware = (req, res, next) => {
 
   const entry = { req, res, next, disconnected: false };
 
-  // Ensure a queue exists for this chatId
   if (!requestQueues[chatId]) {
     requestQueues[chatId] = Promise.resolve();
   }
 
-  // Add the request to the specific chat session's queue
   requestQueues[chatId] = requestQueues[chatId].then(() =>
     processRequest(entry)
   );
@@ -108,7 +98,6 @@ const processRequest = ({ req, res, next, disconnected }) => {
     };
 
     const finishHandler = () => {
-      // console.log("Finish handler called");
       finished = true;
       if (closeCalled) {
         done();
@@ -116,7 +105,6 @@ const processRequest = ({ req, res, next, disconnected }) => {
     };
 
     const closeHandler = () => {
-      // console.log("Close handler called");
       closeCalled = true;
       if (!finished) {
         checkFinishInterval = setInterval(() => {
@@ -145,9 +133,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.json({
-    message: "Welcome to ChatGPT API Playwright reverse proxy made by Deviate",
-  });
+  res.json({ message: "Welcome to ChatGPT API Playwright reverse proxy" });
 });
 
 app.post("/start", async (req, res) => {
@@ -165,8 +151,8 @@ app.post("/conversation", sequentialMiddleware, async (req, res) => {
   if (!chatSession) {
     return res.status(404).json({ message: "Chat session not found" });
   }
-  chatSession.lastActivity = Date.now(); // Update last activity time
-  clearTimeout(chatSession.timeout); // Reset inactivity timeout
+  chatSession.lastActivity = Date.now();
+  clearTimeout(chatSession.timeout);
   chatSession.timeout = setTimeout(() => {
     closeChatSession(chatId);
   }, INACTIVITY_TIMEOUT);
@@ -197,29 +183,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   const chatSession = conversations[chatId];
   const { page, conversation } = chatSession;
 
-  await page.type("#prompt-textarea", prompt, {
-    timeout: 300000,
-  });
-  process.env.DEBUG == "false"
-    ? null
-    : await page.screenshot({
-        path: `screenshots/${chatId}_prompt1.png`,
-        fullPage: true,
-      });
-  await page
-    .getByTestId("send-button", {
-      timeout: 300000,
-    })
-    .click();
+  await page.type("#prompt-textarea", prompt, { timeout: 300000 });
+
+  await page.getByTestId("send-button", { timeout: 300000 }).click();
   await page.waitForSelector('[aria-label="Stop generating"]', {
     timeout: 300000,
   });
-  process.env.DEBUG == "false"
-    ? null
-    : await page.screenshot({
-        path: `screenshots/${chatId}_prompt2.png`,
-        fullPage: true,
-      });
+
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: 300000,
   });
@@ -233,16 +203,10 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     .innerText();
   const textCheck = text.split(" ");
   if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
-    console.log("Lazy Fix");
     text = await lazyLoadingFix(page, chatSession.conversation);
   }
   let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
-  process.env.DEBUG == "false"
-    ? null
-    : await page.screenshot({
-        path: `screenshots/${chatId}_prompt3.png`,
-        fullPage: true,
-      });
+
   console.log(`Prompt response for chat ${chatId}: `, parsedText);
   await stayLoggedOut(page);
   return parsedText;
@@ -252,26 +216,18 @@ function generateUniqueChatId() {
   return "chat_" + Math.random().toString(36).substr(2, 9);
 }
 
-// 404 handler middleware
 app.use((req, res, next) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-// General error handler middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Internal server error" });
 });
 
 chromiumInit().then(() => {
-  initializeServer()
-    .then(() => {
-      const port = 8080;
-      app.listen(port, () => {
-        console.log(`Server is listening on port ${port}`);
-      });
-    })
-    .catch((err) => {
-      console.error("Error during server initialization:", err);
-    });
+  const port = 8080;
+  app.listen(port, () => {
+    console.log(`Server is listening on port ${port}`);
+  });
 });
