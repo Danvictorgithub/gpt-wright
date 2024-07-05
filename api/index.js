@@ -135,7 +135,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.json({
+  res.send({
     message: "Welcome to ChatGPT API Playwright reverse proxy by Deviate",
   });
 });
