@@ -6,9 +6,12 @@ const express = require("express");
 dotenv.config();
 chromium.use(stealth);
 
-const INACTIVITY_TIMEOUT = process.env.INACTIVITY_TIMEOUT_MINUTE
-  ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
-  : 5 * 60 * 1000; // 5 minutes
+const INACTIVITY_TIMEOUT =
+  (process.env.INACTIVITY_TIMEOUT_MINUTE
+    ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
+    : 5) *
+  60 *
+  1000; // 5 minutes
 
 let browser = null;
 let conversations = {};
