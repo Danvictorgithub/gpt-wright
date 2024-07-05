@@ -10,7 +10,8 @@ POST /start - Generates a Chat ID - kills inactivity after 15 mins
 
 POST /conversation - Prompt chat [ requires on request-body {prompt:string} ]
 
-Currently only supports one chat conversation
+~~Currently only supports one chat conversation~~
+Now supports multiple chat conversations
 
 ### Free Cloud deployment
 
