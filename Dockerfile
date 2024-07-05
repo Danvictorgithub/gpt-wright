@@ -17,5 +17,5 @@ COPY index.js /app/
 RUN npm install
 
 # Run Node index.js file and set limit to 500MB
-CMD [ "node",".","--max-old-space-size=500" ]
+CMD [ "node",".","--max-old-space-size=500","`which npm`", "install" ]
 # Build  JS to run via Node

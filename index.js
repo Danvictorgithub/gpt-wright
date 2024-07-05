@@ -11,7 +11,6 @@ const INACTIVITY_TIMEOUT =
     : 5) *
   60 *
   1000; // 5 minutes
-
 let browser = null;
 let conversations = {};
 let requestQueues = {};
@@ -136,7 +135,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.json({ message: "Welcome to ChatGPT API Playwright reverse proxy" });
+  res.json({
+    message: "Welcome to ChatGPT API Playwright reverse proxy by Deviate",
+  });
 });
 
 app.post("/start", async (req, res) => {
@@ -192,7 +193,9 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     });
     console.log(`screenshots/1before-writing-${chatId}.png`);
   }
-  await page.type("#prompt-textarea", prompt, { timeout: 300000 });
+  await page.type("#prompt-textarea", prompt, {
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+  });
   if (process.env.DEBUG == "true") {
     await page.screenshot({
       path: `screenshots/2writing-before-clicking-${chatId}.png`,
@@ -202,16 +205,18 @@ async function scrapeAndAutomateChat(chatId, prompt) {
   // Wait for the ".result-streaming" element to be hidden
   await page.waitForSelector(".result-streaming", {
     state: "hidden",
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
-  // await page.getByTestId("send-button", { timeout: 300000 }).click();
+  // await page.getByTestId("send-button", { timeout: (process.env.WAIT_TIMEOUT) ? process.env.WAIT_TIMEOUT : 300000  }).click();
   // Wait for the send button to be present in the DOM
   await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
 
   // Then click the button
-  await page.click('[data-testid="send-button"]', { timeout: 300000 });
+  await page.click('[data-testid="send-button"]', {
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
+  });
   if (process.env.DEBUG == "true") {
     await page.screenshot({
       path: `screenshots/3after-clicking-${chatId}.png`,
@@ -219,20 +224,20 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     console.log(`screenshots/3after-clicking-${chatId}.png`);
   }
   await page.waitForSelector('[aria-label="Stop generating"]', {
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
   await page.waitForSelector('[data-testid="send-button"]', {
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
   // Wait for the loading indicator (button > div > svg) to be hidden
   await page.waitForSelector("button > div > svg", {
     state: "hidden",
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
   // Wait for the ".result-streaming" element to be hidden
   await page.waitForSelector(".result-streaming", {
     state: "hidden",
-    timeout: 300000,
+    timeout: process.env.WAIT_TIMEOUT ? process.env.WAIT_TIMEOUT : 300000,
   });
 
   chatSession.conversation += 2;
