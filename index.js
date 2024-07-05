@@ -4,6 +4,8 @@ chromium.use(stealth);
 
 const express = require("express");
 
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+
 // states
 let browser = null;
 let conversations = {};
@@ -36,8 +38,25 @@ async function playWrightInit(chatId) {
     return await playWrightInit(chatId);
   }
   console.log(`PlayWright is ready for chat ${chatId}`);
-  conversations[chatId] = { page, conversation: 1, ready: true };
+  conversations[chatId] = {
+    page,
+    conversation: 1,
+    ready: true,
+    lastActivity: Date.now(),
+    timeout: setTimeout(() => {
+      closeChatSession(chatId);
+    }, INACTIVITY_TIMEOUT),
+  };
   requestQueues[chatId] = Promise.resolve();
+}
+
+async function closeChatSession(chatId) {
+  if (conversations[chatId]) {
+    console.log(`Closing chat session ${chatId} due to inactivity`);
+    await conversations[chatId].page.close();
+    delete conversations[chatId];
+    delete requestQueues[chatId];
+  }
 }
 
 async function initializeServer() {
@@ -139,6 +158,11 @@ app.post("/conversation", sequentialMiddleware, async (req, res) => {
   if (!chatSession) {
     return res.status(404).json({ message: "Chat session not found" });
   }
+  chatSession.lastActivity = Date.now(); // Update last activity time
+  clearTimeout(chatSession.timeout); // Reset inactivity timeout
+  chatSession.timeout = setTimeout(() => {
+    closeChatSession(chatId);
+  }, INACTIVITY_TIMEOUT);
   const promptResult = await scrapeAndAutomateChat(chatId, prompt.toString());
   return res.send(promptResult);
 });
