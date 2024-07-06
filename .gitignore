@@ -9,3 +9,4 @@ node_modules/
 /playwright/.cache/
 .env
 .vercel
+screenshots
