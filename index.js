@@ -209,6 +209,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     });
     console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
   }
+  // Added extra checker if the button is still loading while
+  await page.waitForSelector("button > div > svg", {
+    state: "hidden",
+    timeout: process.env.WAIT_TIMEOUT
+      ? parseInt(process.env.WAIT_TIMEOUT)
+      : 300000,
+  });
   // Wait for the ".result-streaming" element to be hidden
   await page.waitForSelector(".result-streaming", {
     state: "hidden",
@@ -241,6 +248,18 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       ? parseInt(process.env.WAIT_TIMEOUT)
       : 300000,
   });
+  const limitCheck = await page.getByText(
+    "You've reached our limit of messages per hour. Please try again later."
+  );
+  if (await limitCheck.isVisible()) {
+    return "You've reached our limit of messages per hour. Please try again later.";
+  }
+  const limitCheck2 = await page.locator(
+    '[class="btn relative btn-primary m-auto"]'
+  );
+  if (await limitCheck2.isVisible()) {
+    return "You've reached our limit of messages per hour. Please try again later. 2";
+  }
   await page.waitForSelector('[data-testid="send-button"]', {
     timeout: process.env.WAIT_TIMEOUT
       ? parseInt(process.env.WAIT_TIMEOUT)
