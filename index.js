@@ -46,6 +46,7 @@ async function playWrightInit(chatId) {
   conversations[chatId] = {
     page,
     conversation: 1,
+    conversationNo: 0,
     ready: true,
     lastActivity: Date.now(),
     timeout: setTimeout(() => {
@@ -188,111 +189,131 @@ async function lazyLoadingFix(page, conversation) {
 }
 
 async function scrapeAndAutomateChat(chatId, prompt) {
-  console.log(`Processing prompt for chat ${chatId}: \n`, prompt);
-  const chatSession = conversations[chatId];
-  const { page, conversation } = chatSession;
-  await stayLoggedOut(page);
-  if (process.env.DEBUG == "true") {
-    await page.screenshot({
-      path: `screenshots/1before-writing-${chatId}.png`,
+  try {
+    if (prompt.length > 4096) {
+      prompt = prompt.substring(0, 4096);
+    }
+    console.log(`Processing prompt for chat ${chatId}: \n`, prompt);
+    const chatSession = conversations[chatId];
+    let { page } = chatSession;
+    chatSession.conversationNo++;
+    console.log(chatSession.conversationNo);
+    if (chatSession.conversationNo == 70) {
+      await closeChatSession(chatId);
+      return "You've reached our limit of messages per hour. Please try again later.";
+    }
+    await stayLoggedOut(page);
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/1before-writing-${chatId}.png`,
+      });
+      console.log(`screenshots/1before-writing-${chatId}.png`);
+    }
+    await page.type("#prompt-textarea", prompt, {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
     });
-    console.log(`screenshots/1before-writing-${chatId}.png`);
-  }
-  await page.type("#prompt-textarea", prompt, {
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  if (process.env.DEBUG == "true") {
-    await page.screenshot({
-      path: `screenshots/2writing-before-clicking-${chatId}.png`,
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/2writing-before-clicking-${chatId}.png`,
+      });
+      console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
+    }
+    // Added extra checker if the button is still loading while
+    await page.waitForSelector("button > div > svg", {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
     });
-    console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
-  }
-  // Added extra checker if the button is still loading while
-  await page.waitForSelector("button > div > svg", {
-    state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  // Wait for the ".result-streaming" element to be hidden
-  await page.waitForSelector(".result-streaming", {
-    state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  // await page.getByTestId("send-button", { timeout: (process.env.WAIT_TIMEOUT) ? parseInt(process.env.WAIT_TIMEOUT) : 300000  }).click();
-  // Wait for the send button to be present in the DOM
-  await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-
-  // Then click the button
-  await page.click('[data-testid="send-button"]', {
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  if (process.env.DEBUG == "true") {
-    await page.screenshot({
-      path: `screenshots/3after-clicking-${chatId}.png`,
+    // Wait for the ".result-streaming" element to be hidden
+    await page.waitForSelector(".result-streaming", {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
     });
-    console.log(`screenshots/3after-clicking-${chatId}.png`);
-  }
-  await page.waitForSelector('[aria-label="Stop generating"]', {
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  const limitCheck = await page.getByText(
-    "You've reached our limit of messages per hour. Please try again later."
-  );
-  if (await limitCheck.isVisible()) {
-    return "You've reached our limit of messages per hour. Please try again later.";
-  }
-  const limitCheck2 = await page.locator(
-    '[class="btn relative btn-primary m-auto"]'
-  );
-  if (await limitCheck2.isVisible()) {
-    return "You've reached our limit of messages per hour. Please try again later. 2";
-  }
-  await page.waitForSelector('[data-testid="send-button"]', {
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  // Wait for the loading indicator (button > div > svg) to be hidden
-  await page.waitForSelector("button > div > svg", {
-    state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
-  // Wait for the ".result-streaming" element to be hidden
-  await page.waitForSelector(".result-streaming", {
-    state: "hidden",
-    timeout: process.env.WAIT_TIMEOUT
-      ? parseInt(process.env.WAIT_TIMEOUT)
-      : 300000,
-  });
+    // await page.getByTestId("send-button", { timeout: (process.env.WAIT_TIMEOUT) ? parseInt(process.env.WAIT_TIMEOUT) : 300000  }).click();
+    // Wait for the send button to be present in the DOM
+    await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
 
-  chatSession.conversation += 2;
-  let text = await page
-    .getByTestId(`conversation-turn-${chatSession.conversation}`)
-    .innerText();
-  const textCheck = text.split(" ");
-  if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
-    text = await lazyLoadingFix(page, chatSession.conversation);
-  }
-  let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
+    // Then click the button
+    await page.click('[data-testid="send-button"]', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/3after-clicking-${chatId}.png`,
+      });
+      console.log(`screenshots/3after-clicking-${chatId}.png`);
+    }
+    await page.waitForSelector('[aria-label="Stop generating"]', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    const limitCheck = await page.getByText(
+      "You've reached our limit of messages per hour. Please try again later."
+    );
+    if (await limitCheck.isVisible()) {
+      return "You've reached our limit of messages per hour. Please try again later.";
+    }
+    const limitCheck2 = await page.locator(
+      '[class="btn relative btn-primary m-auto"]'
+    );
+    if (await limitCheck2.isVisible()) {
+      return "You've reached our limit of messages per hour. Please try again later.";
+    }
+    await page.waitForSelector('[data-testid="send-button"]', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    // Wait for the loading indicator (button > div > svg) to be hidden
+    await page.waitForSelector("button > div > svg", {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    // Wait for the ".result-streaming" element to be hidden
+    await page.waitForSelector(".result-streaming", {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
 
-  console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
-  await stayLoggedOut(page);
-  return parsedText;
+    chatSession.conversation += 2;
+    let text = await page
+      .getByTestId(`conversation-turn-${chatSession.conversation}`)
+      .innerText();
+    const textCheck = text.split(" ");
+    if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
+      text = await lazyLoadingFix(page, chatSession.conversation);
+    }
+    let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
+    if (
+      parsedText ==
+      "You've reached our limit of messages per hour. Please try again later."
+    ) {
+      await closeChatSession(chatId);
+    }
+
+    console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
+    return parsedText;
+  } catch (e) {
+    console.error(e);
+    await closeChatSession(chatId);
+    return "Chat crashed, please create a new chat session";
+  }
 }
 
 function generateUniqueChatId() {
