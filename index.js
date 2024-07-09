@@ -8,9 +8,9 @@ chromium.use(stealth);
 const INACTIVITY_TIMEOUT =
   (process.env.INACTIVITY_TIMEOUT_MINUTE
     ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
-    : 5) *
+    : 25) *
   60 *
-  1000; // 5 minutes
+  1000; // 25 minutes
 let browser = null;
 let conversations = {};
 let requestQueues = {};
