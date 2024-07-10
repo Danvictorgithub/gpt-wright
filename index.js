@@ -172,7 +172,8 @@ app.post("/conversation", sequentialMiddleware, async (req, res) => {
     prompt ==
       "You've reached our limit of messages per hour. Please try again later."
   ) {
-    res.status(429).json({
+    closeChatSession(chatId);
+    return res.status(429).json({
       message: promptResult.message ? promptResult.message : promptResult,
     });
   }
