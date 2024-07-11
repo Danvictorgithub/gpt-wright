@@ -37,10 +37,15 @@ async function playWrightInit(chatId) {
 
   await stayLoggedOut(page);
 
-  const checkContent = await page.$("Get started");
+  const checkContent = await page.getByText("Get started");
   if (checkContent) {
     console.log("Re run");
-    return await puppeteerInit(chatId);
+    return await playWrightInit(chatId);
+  }
+  const checkContent2 = await page.getByTextId("Welcome back");
+  if (await checkContent2.isVisible()) {
+    console.log("Re run");
+    return await playWrightInit(chatId);
   }
 
   conversations[chatId] = {
