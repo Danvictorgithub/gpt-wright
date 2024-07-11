@@ -192,7 +192,7 @@ async function lazyLoadingFix(page, conversation) {
     .getByTestId(`conversation-turn-${conversation}`)
     .innerText();
   const textCheck = text.split(" ");
-  if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
+  if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
     return lazyLoadingFix(page, conversation);
   }
   return text;
@@ -337,7 +337,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 chromiumInit().then(() => {
-  const port = 8080;
+  const port = 8084;
   app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
   });
