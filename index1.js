@@ -38,11 +38,11 @@ async function playWrightInit(chatId) {
   await stayLoggedOut(page);
 
   const checkContent = await page.getByText("Get started");
-  if (checkContent) {
+  if (await checkContent.isVisible()) {
     console.log("Re run");
     return await playWrightInit(chatId);
   }
-  const checkContent2 = await page.getByTextId("Welcome back");
+  const checkContent2 = await page.getByText("Welcome back");
   if (await checkContent2.isVisible()) {
     console.log("Re run");
     return await playWrightInit(chatId);
