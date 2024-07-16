@@ -20,3 +20,5 @@ main server - https://gpt-wright.onrender.com
 server 2 - https://gpt-wright-one.onrender.com
 
 server 3 - https://gpt-wright-two.onrender.com
+
+edit
