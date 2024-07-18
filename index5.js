@@ -237,7 +237,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     }
     // Wait for the send button to be present in the DOM
     await page.waitForSelector(
-      '[data-testid="fruitjuice-send-button"]:not([disabled])',
+      'button[class="mb-1 me-1 flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:bg-[#D7D7D7] disabled:text-[#f4f4f4] disabled:hover:opacity-100 dark:bg-white dark:text-black dark:focus-visible:outline-white disabled:dark:bg-token-text-quaternary dark:disabled:text-token-main-surface-secondary"]:not([disabled])',
       {
         timeout: process.env.WAIT_TIMEOUT
           ? parseInt(process.env.WAIT_TIMEOUT)
@@ -246,11 +246,14 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     );
 
     // Then click the button
-    await page.click('[data-testid="fruitjuice-send-button"]', {
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
+    await page.click(
+      'button[class="mb-1 me-1 flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:bg-[#D7D7D7] disabled:text-[#f4f4f4] disabled:hover:opacity-100 dark:bg-white dark:text-black dark:focus-visible:outline-white disabled:dark:bg-token-text-quaternary dark:disabled:text-token-main-surface-secondary"]:not([disabled])',
+      {
+        timeout: process.env.WAIT_TIMEOUT
+          ? parseInt(process.env.WAIT_TIMEOUT)
+          : 300000,
+      }
+    );
     if (process.env.DEBUG == "true") {
       await page.screenshot({
         path: `screenshots/3after-clicking-${chatId}.png`,
@@ -284,13 +287,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
-    await page.waitForSelector('[data-testid="fruitjuice-stop-button"]', {
+    await page.waitForSelector("button > svg.icon-lg", {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
 
-    await page.waitForSelector('[data-testid="fruitjuice-stop-button"]', {
+    await page.waitForSelector("button > svg.icon-lg", {
       state: "hidden",
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
@@ -328,7 +331,6 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     return { message: "Chat crashed, please create a new chat session" };
   }
 }
-
 function generateUniqueChatId() {
   return "chat_" + Math.random().toString(36).substr(2, 9);
 }
