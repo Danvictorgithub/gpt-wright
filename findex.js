@@ -1,10 +1,10 @@
-const { chromium } = require("playwright-extra");
+const { firefox } = require("playwright-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
 const dotenv = require("dotenv");
 const express = require("express");
 
 dotenv.config();
-chromium.use(stealth);
+firefox.use(stealth);
 const INACTIVITY_TIMEOUT =
   (process.env.INACTIVITY_TIMEOUT_MINUTE
     ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
@@ -15,10 +15,10 @@ let browser = null;
 let conversations = {};
 let requestQueues = {};
 
-async function chromiumInit() {
+async function firefoxInit() {
   if (!browser) {
-    console.log("Launching Chromium");
-    browser = await chromium.launch();
+    console.log("Launching firefox");
+    browser = await firefox.launch();
   }
 }
 
@@ -30,7 +30,6 @@ async function playWrightInit(chatId) {
 
   console.log(`Creating new page for chat ${chatId}`);
   const page = await browser.newPage();
-
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
     await playWrightInit(chatId);
@@ -338,7 +337,7 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Internal server error" });
 });
-chromiumInit().then(() => {
+firefoxInit().then(() => {
   const port = 8080;
   app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);

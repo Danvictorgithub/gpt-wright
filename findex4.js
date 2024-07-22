@@ -1,10 +1,10 @@
-const { chromium } = require("playwright-extra");
+const { firefox } = require("playwright-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
 const dotenv = require("dotenv");
 const express = require("express");
 
 dotenv.config();
-chromium.use(stealth);
+firefox.use(stealth);
 const INACTIVITY_TIMEOUT =
   (process.env.INACTIVITY_TIMEOUT_MINUTE
     ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
@@ -15,10 +15,10 @@ let browser = null;
 let conversations = {};
 let requestQueues = {};
 
-async function chromiumInit() {
+async function firefoxInit() {
   if (!browser) {
-    console.log("Launching Chromium");
-    browser = await chromium.launch();
+    console.log("Launching firefox");
+    browser = await firefox.launch();
   }
 }
 
@@ -30,7 +30,6 @@ async function playWrightInit(chatId) {
 
   console.log(`Creating new page for chat ${chatId}`);
   const page = await browser.newPage();
-
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
     await playWrightInit(chatId);
@@ -48,6 +47,7 @@ async function playWrightInit(chatId) {
     console.log("Re run");
     return await playWrightInit(chatId);
   }
+
   conversations[chatId] = {
     page,
     conversation: 1,
@@ -197,7 +197,7 @@ async function lazyLoadingFix(page, conversation) {
     .getByTestId(`conversation-turn-${conversation}`)
     .innerText();
   const textCheck = text.split(" ");
-  if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
+  if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
     return lazyLoadingFix(page, conversation);
   }
   return text;
@@ -325,7 +325,6 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     return { message: "Chat crashed, please create a new chat session" };
   }
 }
-
 function generateUniqueChatId() {
   return "chat_" + Math.random().toString(36).substr(2, 9);
 }
@@ -338,8 +337,8 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Internal server error" });
 });
-chromiumInit().then(() => {
-  const port = 8080;
+firefoxInit().then(() => {
+  const port = 8084;
   app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
   });
