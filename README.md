@@ -25,7 +25,7 @@ server 3 - https://gpt-wright-two.onrender.com
 
 Uses Playwright with Stealth plugin to always have unique browser configurations (and also bypasses cloudflare allowing almost limitless API calls and ChatGPT 1 hour limit prompts, Can generate 50k prompts in 24 hours on 12 threads CPU with medium length response or around 1-2k tokens)
 
-Applies parallel API calls with each dependent Chat ID to have a 'Queue middleware'/it waits for pending response to finish (recurring chats must be finished before the next prompt is processed, or waiting for chatgpt to response before the next prompt is processed)
+Applies parallel API calls with each dependent Chat ID to have a 'Queue middleware'/it waits for pending response to finish (recurring chats must be finished before the next prompt is processed, or waiting for chatgpt to response before the next prompt is processed, this only applies if there are many pending prompts on the same ChatID)
 
 This process uses ChatGPT no logins prompts which is similar to doing OPEN AI chat_completion API but free (but lacks the ability to fine tune)
 
