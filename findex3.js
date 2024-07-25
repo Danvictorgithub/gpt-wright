@@ -32,6 +32,7 @@ async function playWrightInit(chatId) {
   const page = await browser.newPage();
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
+    await page.close();
     await playWrightInit(chatId);
   });
 
