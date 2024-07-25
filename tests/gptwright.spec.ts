@@ -24,7 +24,7 @@ test.afterAll(async () => {
 });
 
 test('handle 100 prompts in a single chat session', async ({ }, testInfo) => {
-    testInfo.setTimeout(0); // Disable timeout for this test
+    // testInfo.setTimeout(0); // Disable timeout for this test
     const chatId = generateUniqueChatId();
     await playWrightInit(chatId);
 
@@ -159,8 +159,8 @@ async function scrapeAndAutomateChat(chatId, prompt) {
             await closeChatSession(chatId);
             return "You've reached our limit of messages per hour. Please try again later.";
         }
-        const limitCheck2 = await page.locator(
-            '[class="btn relative btn-primary m-auto"]'
+        const limitCheck2 = await page.getByText(
+            "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
         );
         if (await limitCheck2.isVisible()) {
             await closeChatSession(chatId);

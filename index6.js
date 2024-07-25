@@ -275,8 +275,8 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
-    const limitCheck2 = await page.locator(
-      '[class="btn relative btn-primary m-auto"]'
+    const limitCheck2 = await page.getByText(
+      "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
     );
     if (await limitCheck2.isVisible()) {
       await closeChatSession(chatId);
@@ -288,13 +288,16 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/4after-streaming-${chatId}.png`);
     }
-    await page.waitForSelector('[data-testid="stop-button"]', {
+    const stopButton = page.locator('[data-testid="stop-button"]');
+
+    await stopButton.waitFor({
+      state: "visible",
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
 
-    await page.waitForSelector('[data-testid="stop-button"]', {
+    await stopButton.waitFor({
       state: "hidden",
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
