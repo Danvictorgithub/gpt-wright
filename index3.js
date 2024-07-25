@@ -281,6 +281,12 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/4after-streaming-${chatId}.png`,
+      });
+      console.log(`screenshots/4after-streaming-${chatId}.png`);
+    }
     await page.waitForSelector('[data-testid="stop-button"]', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
