@@ -172,6 +172,18 @@ async function scrapeAndAutomateChat(chatId, prompt) {
             });
 
             chatSession.conversation += 2;
+            if (chatSession.conversation == 3) {
+                let text1 = await page
+                    .locator(`[data-testid="conversation-turn-2"]`)
+                    .innerText();
+                let parsedText1 = text1.replace("ChatGPT\n\n", "").trim();
+                if (
+                    parsedText1 ==
+                    "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
+                ) {
+                    await closeChatSession(chatId);
+                }
+            }
             let text = await page.textContent(`conversation-turn-${chatSession.conversation}`);
 
             if (text.includes("ChatGPT\nChatGPT") && text.split(" ").length <= 1) {
