@@ -1,11 +1,11 @@
 // playwright-load.test.js
 const { test, expect } = require('@playwright/test');
-const { chromium } = require('playwright-extra');
+const { firefox } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const dotenv = require('dotenv');
 
 dotenv.config();
-chromium.use(stealth);
+firefox.use(stealth);
 
 let browser;
 let page;
@@ -16,7 +16,7 @@ let conversations = {};
 let requestQueues = {};
 
 test.beforeAll(async () => {
-    browser = await chromium.launch();
+    browser = await firefox.launch();
 });
 
 test.afterAll(async () => {
