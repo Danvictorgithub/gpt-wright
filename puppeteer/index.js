@@ -258,7 +258,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
     }
-
+    // Added extra checker if the button is still loading while
+    await page.waitForSelector('[data-testid="stop-button"]', {
+      hidden: true,
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
     await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
@@ -310,7 +316,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    await page.waitForSelector("button > div > svg", {
+    await page.waitForSelector('[data-testid="stop-button"]', {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)

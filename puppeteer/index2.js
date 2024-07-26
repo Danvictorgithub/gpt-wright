@@ -310,7 +310,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    await page.waitForSelector("button > div > svg", {
+    await page.waitForSelector('[data-testid="stop-button"]', {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
