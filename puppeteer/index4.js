@@ -188,9 +188,22 @@ app.post("/conversation", sequentialMiddleware, async (req, res) => {
 });
 
 async function stayLoggedOut(page) {
-  const button = await page.$("text=" + "Stay logged out");
-  if (button) {
-    await button.click();
+  try {
+    // Wait for the link with text "Stay logged out" to be visible
+    await page.waitForSelector('a[href="#"]', {
+      visible: true,
+      timeout: 5000,
+    });
+
+    // Click the link
+    await page.click('a[href="#"]');
+
+    console.log('Successfully clicked "Stay logged out"');
+  } catch (error) {
+    // console.error(
+    //   'No "Stay logged out" link found or other error occurred:',
+    //   error
+    // );
   }
 }
 
