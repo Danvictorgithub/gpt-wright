@@ -283,12 +283,21 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       console.log(`screenshots/3after-clicking-${chatId}.png`);
     }
     await page.waitForSelector(".result-thinking", {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    await page.waitForSelector(".result-thinking", {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-
+    await page.waitForSelector(".result-streaming", {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
     await page.waitForSelector(".result-streaming", {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
@@ -328,7 +337,12 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/4parsing-text-${chatId}.png`,
+      });
+      console.log(`screenshots/4parsing-text-${chatId}.png`);
+    }
     chatSession.conversation += 2;
     if (chatSession.conversation == 3) {
       let text1 = await page.$eval(
