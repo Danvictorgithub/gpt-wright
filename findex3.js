@@ -288,24 +288,18 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/4after-streaming-${chatId}.png`);
     }
-    await page.waitForSelector(
-      'button.mb-1.me-1.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-black.text-white.transition-colors.hover\\:opacity-70.focus-visible\\:outline-none.focus-visible\\:outline-black.disabled\\:bg-\\[\\#D7D7D7\\].disabled\\:text-\\[\\#f4f4f4\\].disabled\\:hover\\:opacity-100.dark\\:bg-white.dark\\:text-black.dark\\:focus-visible\\:outline-white.disabled\\:dark\\:bg-token-text-quaternary.dark\\:disabled\\:text-token-main-surface-secondary[data-testid="stop-button"]',
-      {
-        timeout: process.env.WAIT_TIMEOUT
-          ? parseInt(process.env.WAIT_TIMEOUT)
-          : 300000,
-      }
-    );
+    await page.waitForSelector('[data-testid="stop-button"]', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
 
-    await page.waitForSelector(
-      'button.mb-1.me-1.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-black.text-white.transition-colors.hover\\:opacity-70.focus-visible\\:outline-none.focus-visible\\:outline-black.disabled\\:bg-\\[\\#D7D7D7\\].disabled\\:text-\\[\\#f4f4f4\\].disabled\\:hover\\:opacity-100.dark\\:bg-white.dark\\:text-black.dark\\:focus-visible\\:outline-white.disabled\\:dark\\:bg-token-text-quaternary.dark\\:disabled\\:text-token-main-surface-secondary[data-testid="stop-button"]',
-      {
-        state: "hidden",
-        timeout: process.env.WAIT_TIMEOUT
-          ? parseInt(process.env.WAIT_TIMEOUT)
-          : 300000,
-      }
-    );
+    await page.waitForSelector('[data-testid="stop-button"]', {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
     chatSession.conversation += 2;
     if (chatSession.conversation == 3) {
       let text1 = await page

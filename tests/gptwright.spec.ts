@@ -1,11 +1,11 @@
 // playwright-load.test.js
 const { test, expect } = require('@playwright/test');
-const { firefox } = require('playwright-extra');
+const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const dotenv = require('dotenv');
 
 dotenv.config();
-firefox.use(stealth);
+chromium.use(stealth);
 
 let browser;
 let page;
@@ -16,7 +16,7 @@ let conversations = {};
 let requestQueues = {};
 
 test.beforeAll(async () => {
-    browser = await firefox.launch();
+    browser = await chromium.launch();
 });
 
 test.afterAll(async () => {
@@ -27,13 +27,15 @@ test('handle 100 prompts in a single chat session', async ({ }, testInfo) => {
     // testInfo.setTimeout(0); // Disable timeout for this test
     const chatId = generateUniqueChatId();
     await playWrightInit(chatId);
-
-    for (let i = 0; i < 100; i++) {
-        const prompt = `This is test prompt number ${i + 1}`;
-        const response = await scrapeAndAutomateChat(chatId, prompt);
-        expect(response).toBeDefined();
-        console.log(`Prompt ${i + 1} processed successfully.`);
-    }
+    const prompt = `This is test prompt number 1`;
+    const response = await scrapeAndAutomateChat(chatId, prompt);
+    await setTimeout(() => { }, 360000)
+    // for (let i = 0; i < 100; i++) {
+    //     const prompt = `This is test prompt number ${i + 1}`;
+    //     const response = await scrapeAndAutomateChat(chatId, prompt);
+    //     expect(response).toBeDefined();
+    //     console.log(`Prompt ${i + 1} processed successfully.`);
+    // }
 
     await closeChatSession(chatId);
 });

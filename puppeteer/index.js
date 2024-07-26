@@ -18,7 +18,7 @@ let requestQueues = {};
 async function puppeteerInit() {
   if (!browser) {
     console.log("Launching Puppeteer");
-    browser = await puppeteer.launch();
+    browser = await puppeteer.launch({ headless: false });
   }
 }
 
@@ -32,6 +32,7 @@ async function pageInit(chatId) {
   const page = await browser.newPage();
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
+    await page.close();
     await pageInit(chatId);
   });
 
@@ -218,7 +219,7 @@ async function lazyLoadingFix(page, conversation) {
     return element ? element.innerText : "";
   }, conversation);
   const textCheck = text.split(" ");
-  if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
+  if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
     return lazyLoadingFix(page, conversation);
   }
   return text;
@@ -235,7 +236,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     await stayLoggedOut(page);
     chatSession.conversationNo++;
     console.log(chatSession.conversationNo);
-    if (chatSession.conversationNo == 70) {
+    if (chatSession.conversationNo == 20) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
@@ -256,28 +257,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
     }
-    // Added extra checker if the button is still loading while
-    await page.waitForSelector("button > div > svg", {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
-    // Wait for the ".result-streaming" element to be hidden
-    await page.waitForSelector(".result-streaming", {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
-    // Wait for the send button to be present in the DOM
+
     await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
 
-    // Then click the button
     await page.click('[data-testid="send-button"]', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
@@ -289,11 +275,20 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/3after-clicking-${chatId}.png`);
     }
-    await page.waitForSelector('[aria-label="Stop generating"]', {
+    await page.waitForSelector(".result-thinking", {
+      hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
+
+    await page.waitForSelector(".result-streaming", {
+      hidden: true,
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+    console.log("this passed");
     const limitCheck = await page.evaluate(() => {
       const element = document.evaluate(
         '//div[contains(text(), "You\'ve reached our limit of messages per hour. Please try again later.")]',
@@ -314,14 +309,12 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    // Wait for the loading indicator (button > div > svg) to be hidden
     await page.waitForSelector("button > div > svg", {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    // Wait for the ".result-streaming" element to be hidden
     await page.waitForSelector(".result-streaming", {
       hidden: true,
       timeout: process.env.WAIT_TIMEOUT
@@ -331,9 +324,10 @@ async function scrapeAndAutomateChat(chatId, prompt) {
 
     chatSession.conversation += 2;
     if (chatSession.conversation == 3) {
-      let text1 = await page
-        .locator(`[data-testid="conversation-turn-2"]`)
-        .innerText();
+      let text1 = await page.$eval(
+        '[data-testid="conversation-turn-2"]',
+        (el) => el.innerText
+      );
       let parsedText1 = text1.replace("ChatGPT\n\n", "").trim();
       if (
         parsedText1 ==
@@ -349,10 +343,10 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       return element ? element.innerText : "";
     }, chatSession.conversation);
     const textCheck = text.split(" ");
-    if (textCheck[0] == "ChatGPT\nChatGPT" && textCheck.length <= 1) {
+    if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
       text = await lazyLoadingFix(page, chatSession.conversation);
     }
-    let parsedText = text.replace("ChatGPT\nChatGPT", "").trim();
+    let parsedText = text.replace("ChatGPT\n\n", "").trim();
     if (
       parsedText ==
       "You've reached our limit of messages per hour. Please try again later."
