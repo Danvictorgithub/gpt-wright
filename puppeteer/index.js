@@ -33,7 +33,7 @@ async function pageInit(chatId) {
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
     await page.close();
-    await pageInit(chatId);
+    return await pageInit(chatId);
   });
 
   await stayLoggedOut(page);
