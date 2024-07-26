@@ -370,7 +370,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 chromiumInit().then(() => {
-  const port = 8086;
+  const port = 8085;
   app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
   });
