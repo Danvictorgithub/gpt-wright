@@ -296,7 +296,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     });
 
     await page.waitForSelector('[data-testid="stop-button"]', {
-      state: "hidden",
+      hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
