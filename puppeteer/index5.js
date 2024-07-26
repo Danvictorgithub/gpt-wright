@@ -323,7 +323,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     await page.waitForSelector('[data-testid="send-button"]', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
+        : 0,
     });
     await page.waitForSelector('[data-testid="stop-button"]', {
       hidden: true,
@@ -374,7 +374,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     ) {
       await closeChatSession(chatId);
     }
-
+    await stayLoggedOut(page);
     console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
     return parsedText;
   } catch (e) {
