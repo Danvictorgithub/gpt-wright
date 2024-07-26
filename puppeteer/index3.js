@@ -1,10 +1,10 @@
 const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const stealth = require("puppeteer-extra-plugin-stealth")();
 const dotenv = require("dotenv");
 const express = require("express");
 
 dotenv.config();
-puppeteer.use(StealthPlugin());
+puppeteer.use(stealth);
 const INACTIVITY_TIMEOUT =
   (process.env.INACTIVITY_TIMEOUT_MINUTE
     ? parseInt(process.env.INACTIVITY_TIMEOUT_MINUTE)
@@ -15,15 +15,15 @@ let browser = null;
 let conversations = {};
 let requestQueues = {};
 
-async function puppeteerInit() {
+async function chromiumInit() {
   if (!browser) {
-    console.log("Launching Puppeteer");
+    console.log("Launching Chromium");
     // browser = await puppeteer.launch({ headless: false });
     browser = await puppeteer.launch();
   }
 }
 
-async function pageInit(chatId) {
+async function playWrightInit(chatId) {
   if (conversations[chatId] && conversations[chatId].page) {
     console.log(`Reusing existing page for chat ${chatId}`);
     return;
@@ -31,25 +31,25 @@ async function pageInit(chatId) {
 
   console.log(`Creating new page for chat ${chatId}`);
   const page = await browser.newPage();
+
   await page.goto("https://www.chatgpt.com").catch(async (err) => {
     console.log("Re Run");
     await page.close();
-    return await pageInit(chatId);
+    await playWrightInit(chatId);
   });
 
   await stayLoggedOut(page);
 
-  const checkContent = await page.$("Get started");
+  const checkContent = await page.$("text=" + "Get started");
   if (checkContent) {
     console.log("Re run");
-    return await pageInit(chatId);
+    return await playWrightInit(chatId);
   }
-  const checkContent2 = await page.$("Get started");
+  const checkContent2 = await page.$("text=" + "Welcome back");
   if (checkContent2) {
     console.log("Re run");
-    return await pageInit(chatId);
+    return await playWrightInit(chatId);
   }
-
   conversations[chatId] = {
     page,
     conversation: 1,
@@ -73,11 +73,7 @@ async function pageInit(chatId) {
 async function closeChatSession(chatId) {
   if (conversations[chatId]) {
     console.log(`Closing chat session ${chatId} due to inactivity`);
-    try {
-      await conversations[chatId].page.close();
-    } catch (error) {
-      console.error(`Error closing page for chat ${chatId}:`, error);
-    }
+    await conversations[chatId].page.close();
     delete conversations[chatId];
     delete requestQueues[chatId];
   }
@@ -153,13 +149,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/screenshots", express.static("screenshots"));
 app.get("/", (req, res) => {
   res.json({
-    message: "Welcome to ChatGPT API Puppeteer reverse proxy by Deviate",
+    message: "Welcome to ChatGPT API Playwright reverse proxy by Deviate",
   });
 });
 
 app.post("/start", async (req, res) => {
   const chatId = generateUniqueChatId();
-  await pageInit(chatId);
+  await playWrightInit(chatId);
   res.json({ chatId });
 });
 
@@ -177,48 +173,31 @@ app.post("/conversation", sequentialMiddleware, async (req, res) => {
   chatSession.timeout = setTimeout(() => {
     closeChatSession(chatId);
   }, INACTIVITY_TIMEOUT);
-
-  try {
-    const promptResult = await scrapeAndAutomateChat(chatId, prompt.toString());
-    if (typeof promptResult === "object" && promptResult.message) {
-      return res.status(429).json(promptResult);
-    }
-    return res.json({ response: promptResult });
-  } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "An error occurred while processing your request" });
+  const promptResult = await scrapeAndAutomateChat(chatId, prompt.toString());
+  if (
+    promptResult.message ||
+    prompt ==
+      "You've reached our limit of messages per hour. Please try again later."
+  ) {
+    closeChatSession(chatId);
+    return res.status(429).json({
+      message: promptResult.message ? promptResult.message : promptResult,
+    });
   }
+  return res.json({ response: promptResult });
 });
 
 async function stayLoggedOut(page) {
-  try {
-    // Wait for the link with text "Stay logged out" to be visible
-    await page.waitForSelector('a[href="#"]', {
-      visible: true,
-      timeout: 5000,
-    });
-
-    // Click the link
-    await page.click('a[href="#"]');
-
-    console.log('Successfully clicked "Stay logged out"');
-  } catch (error) {
-    // console.error(
-    //   'No "Stay logged out" link found or other error occurred:',
-    //   error
-    // );
+  const button = await page.$("text=" + "Stay logged out");
+  if (button) {
+    await button.click();
   }
 }
 
 async function lazyLoadingFix(page, conversation) {
-  let text = await page.evaluate((conversation) => {
-    const element = document.querySelector(
-      `[data-testid="conversation-turn-${conversation}"]`
-    );
-    return element ? element.innerText : "";
-  }, conversation);
+  let text = await page
+    .getByTestId(`conversation-turn-${conversation}`)
+    .innerText();
   const textCheck = text.split(" ");
   if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
     return lazyLoadingFix(page, conversation);
@@ -234,13 +213,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     console.log(`Processing prompt for chat ${chatId}: \n`, prompt);
     const chatSession = conversations[chatId];
     let { page } = chatSession;
-    await stayLoggedOut(page);
     chatSession.conversationNo++;
     console.log(chatSession.conversationNo);
     if (chatSession.conversationNo == 20) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
+    await stayLoggedOut(page);
     if (process.env.DEBUG == "true") {
       await page.screenshot({
         path: `screenshots/1before-writing-${chatId}.png`,
@@ -258,20 +237,15 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       });
       console.log(`screenshots/2writing-before-clicking-${chatId}.png`);
     }
-    // Added extra checker if the button is still loading while
-    await page.waitForSelector('[data-testid="stop-button"]', {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
+    // Wait for the send button to be present in the DOM
     await page.waitForSelector('[data-testid="send-button"]:not([disabled])', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
 
-    await page.click('[data-testid="send-button"]', {
+    // Then click the button
+    await page.click('[data-testid="send-button"]:not([disabled])', {
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
@@ -283,71 +257,56 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       console.log(`screenshots/3after-clicking-${chatId}.png`);
     }
     await page.waitForSelector(".result-thinking", {
+      state: "hidden",
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    await page.waitForSelector(".result-thinking", {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
+    // Wait for the ".result-streaming" element to be hidden
     await page.waitForSelector(".result-streaming", {
+      state: "hidden",
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    await page.waitForSelector(".result-streaming", {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
-
-    const limitCheck = await page.evaluate(() => {
-      const element = document.evaluate(
-        '//div[contains(text(), "You\'ve reached our limit of messages per hour. Please try again later.")]',
-        document,
-        null,
-        XPathResult.FIRST_ORDERED_NODE_TYPE,
-        null
-      ).singleNodeValue;
-      return !!element;
-    });
-
+    const limitCheck = await page.$(
+      'text="You\'ve reached our limit of messages per hour. Please try again later."'
+    );
     if (limitCheck) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
-    await page.waitForSelector('[data-testid="send-button"]', {
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
-    await page.waitForSelector('[data-testid="stop-button"]', {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
-    await page.waitForSelector(".result-streaming", {
-      hidden: true,
-      timeout: process.env.WAIT_TIMEOUT
-        ? parseInt(process.env.WAIT_TIMEOUT)
-        : 300000,
-    });
+    const limitCheck2 = await page.$(
+      'text="Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."'
+    );
+    if (limitCheck2) {
+      await closeChatSession(chatId);
+      return "You've reached our limit of messages per hour. Please try again later.";
+    }
     if (process.env.DEBUG == "true") {
       await page.screenshot({
-        path: `screenshots/4parsing-text-${chatId}.png`,
+        path: `screenshots/4after-streaming-${chatId}.png`,
       });
-      console.log(`screenshots/4parsing-text-${chatId}.png`);
+      console.log(`screenshots/4after-streaming-${chatId}.png`);
     }
+    await page.waitForSelector('[data-testid="stop-button"]', {
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
+
+    await page.waitForSelector('[data-testid="stop-button"]', {
+      state: "hidden",
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
     chatSession.conversation += 2;
+
     if (chatSession.conversation == 3) {
-      let text1 = await page.$eval(
-        '[data-testid="conversation-turn-2"]',
-        (el) => el.innerText
+      let text1 = await page.evaluate(
+        (el) => el.innerText,
+        await page.$('[data-testid="conversation-turn-2"]')
       );
       let parsedText1 = text1.replace("ChatGPT\n\n", "").trim();
       if (
@@ -357,24 +316,38 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         await closeChatSession(chatId);
       }
     }
-    let text = await page.evaluate((conversation) => {
-      const element = document.querySelector(
-        `[data-testid="conversation-turn-${conversation}"]`
-      );
-      return element ? element.innerText : "";
-    }, chatSession.conversation);
+
+    let text = await page.evaluate(
+      (el) => el.innerText,
+      await page.$(
+        `[data-testid="conversation-turn-${chatSession.conversation}"]`
+      )
+    );
+    console.log(text);
+
     const textCheck = text.split(" ");
     if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
       text = await lazyLoadingFix(page, chatSession.conversation);
     }
+
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/4parsing-text-${chatId}.png`,
+      });
+      console.log(`screenshots/4parsing-text-${chatId}.png`);
+    }
+
     let parsedText = text.replace("ChatGPT\n\n", "").trim();
+
     if (
       parsedText ==
-      "You've reached our limit of messages per hour. Please try again later."
+        "You've reached our limit of messages per hour. Please try again later." ||
+      parsedText ==
+        "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
     ) {
       await closeChatSession(chatId);
     }
-    await stayLoggedOut(page);
+
     console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
     return parsedText;
   } catch (e) {
@@ -396,8 +369,7 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Internal server error" });
 });
-
-puppeteerInit().then(() => {
+chromiumInit().then(() => {
   const port = 8083;
   app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
