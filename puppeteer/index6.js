@@ -283,6 +283,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       await closeChatSession(chatId);
       return "You've reached our limit of messages per hour. Please try again later.";
     }
+    const limitCheck3 = await page.$(
+      'text="A network error occurred. Please check your connection and try again. If this issue persists please contact us through our help center at help.openai.com."'
+    );
+    if (limitCheck3) {
+      await closeChatSession(chatId);
+      return "You've reached our limit of messages per hour. Please try again later.";
+    }
     if (process.env.DEBUG == "true") {
       await page.screenshot({
         path: `screenshots/4after-streaming-${chatId}.png`,
