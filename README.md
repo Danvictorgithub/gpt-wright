@@ -1,4 +1,4 @@
-# GPT-Wright v2
+# GPT-Wright v2 (Currently unavailable please use the Puppeteer version)
 
 ### ChatGPT 3.5-turbo reverse proxy with Chromium based PlayWright, Express REST-API, A free non-fine-tunable REST-API alternative for GPT chat completion API
 
