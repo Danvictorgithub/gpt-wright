@@ -304,7 +304,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
-    console.log("this passed");
+
     const limitCheck = await page.evaluate(() => {
       const element = document.evaluate(
         '//div[contains(text(), "You\'ve reached our limit of messages per hour. Please try again later.")]',
