@@ -18,7 +18,8 @@ let requestQueues = {};
 async function puppeteerInit() {
   if (!browser) {
     console.log("Launching Puppeteer");
-    browser = await puppeteer.launch({ headless: false });
+    // browser = await puppeteer.launch({ headless: false });
+    browser = await puppeteer.launch();
   }
 }
 
