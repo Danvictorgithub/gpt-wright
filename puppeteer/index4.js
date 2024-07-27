@@ -279,14 +279,14 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       console.log(`screenshots/3after-clicking-${chatId}.png`);
     }
     await page.waitForSelector(".result-thinking", {
-      state: "hidden",
+      hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
     // Wait for the ".result-streaming" element to be hidden
     await page.waitForSelector(".result-streaming", {
-      state: "hidden",
+      hidden: true,
       timeout: process.env.WAIT_TIMEOUT
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
@@ -330,8 +330,13 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         ? parseInt(process.env.WAIT_TIMEOUT)
         : 300000,
     });
+    await page.waitForSelector(".result-streaming", {
+      hidden: true,
+      timeout: process.env.WAIT_TIMEOUT
+        ? parseInt(process.env.WAIT_TIMEOUT)
+        : 300000,
+    });
     chatSession.conversation += 2;
-
     if (chatSession.conversation == 3) {
       let text1 = await page.evaluate(
         (el) => el.innerText,
@@ -352,7 +357,7 @@ async function scrapeAndAutomateChat(chatId, prompt) {
         `[data-testid="conversation-turn-${chatSession.conversation}"]`
       )
     );
-    console.log(text);
+    // console.log(text);
 
     const textCheck = text.split(" ");
     if (textCheck[0] == "ChatGPT\n\n" && textCheck.length <= 1) {
