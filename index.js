@@ -333,7 +333,10 @@ async function scrapeAndAutomateChat(chatId, prompt) {
       parsedText ==
         "You've reached our limit of messages per hour. Please try again later." ||
       parsedText ==
-        "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
+        "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com." ||
+      parsedText.includes(
+        "A network error occurred. Please check your connection and try again. If this issue persists please contact us through our help center at help.openai.com."
+      )
     ) {
       await closeChatSession(chatId);
     }

@@ -412,7 +412,7 @@ function generateUniqueChatId() {
 
 async function handleGlobalError() {
   console.log("Err counter: ", numErr);
-  if (numErr > 100) {
+  if (numErr > 6) {
     await browser.close();
     browser = await puppeteer.launch();
     conversations = {};
