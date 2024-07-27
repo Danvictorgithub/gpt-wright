@@ -416,6 +416,7 @@ async function handleGlobalError() {
     conversations = {};
     requestQueues = {};
     numErr = 0;
+    console.log("Browser Restart");
   }
 }
 
