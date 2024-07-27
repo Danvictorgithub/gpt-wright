@@ -355,8 +355,6 @@ async function scrapeAndAutomateChat(chatId, prompt) {
           "Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com."
         )
       ) {
-        numErr++;
-        await handleGlobalError();
         await closeChatSession(chatId);
       }
     }
