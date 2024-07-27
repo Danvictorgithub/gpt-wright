@@ -14,6 +14,7 @@ const INACTIVITY_TIMEOUT =
 let browser = null;
 let conversations = {};
 let requestQueues = {};
+let numErr = 0;
 
 async function chromiumInit() {
   try {
@@ -23,6 +24,8 @@ async function chromiumInit() {
       browser = await puppeteer.launch();
     }
   } catch {
+    numErr++;
+    await handleGlobalError();
     console.log("Failed to launch re-run browser");
     chromiumInit();
   }
@@ -75,6 +78,8 @@ async function playWrightInit(chatId) {
     requestQueues[chatId] = Promise.resolve();
     console.log(`Page is ready for chat ${chatId}`);
   } catch {
+    numErr++;
+    await handleGlobalError();
     return playWrightInit(chatId);
   }
 }
@@ -209,6 +214,8 @@ async function stayLoggedOut(page) {
 
     console.log('Successfully clicked "Stay logged out"');
   } catch (error) {
+    numErr++;
+    await handleGlobalError();
     // console.error(
     //   'No "Stay logged out" link found or other error occurred:',
     //   error
@@ -385,6 +392,9 @@ async function scrapeAndAutomateChat(chatId, prompt) {
     console.log(`Prompt response for chat ${chatId}: \n`, parsedText);
     return parsedText;
   } catch (e) {
+    numErr++;
+    await handleGlobalError();
+
     console.error(e);
     await closeChatSession(chatId);
     return { message: "Chat crashed, please create a new chat session" };
@@ -393,6 +403,16 @@ async function scrapeAndAutomateChat(chatId, prompt) {
 
 function generateUniqueChatId() {
   return "chat_" + Math.random().toString(36).substr(2, 9);
+}
+
+async function handleGlobalError() {
+  if (numErr > 20) {
+    await browser.close();
+    browser = await puppeteer.launch();
+    conversations = {};
+    requestQueues = {};
+    numErr = 0;
+  }
 }
 
 app.use((req, res, next) => {
