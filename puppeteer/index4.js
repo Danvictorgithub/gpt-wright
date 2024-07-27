@@ -75,7 +75,7 @@ async function playWrightInit(chatId) {
     requestQueues[chatId] = Promise.resolve();
     console.log(`Page is ready for chat ${chatId}`);
   } catch {
-    playWrightInit(chatId);
+    return playWrightInit(chatId);
   }
 }
 
