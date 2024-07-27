@@ -214,8 +214,6 @@ async function stayLoggedOut(page) {
 
     console.log('Successfully clicked "Stay logged out"');
   } catch (error) {
-    numErr++;
-    await handleGlobalError();
     // console.error(
     //   'No "Stay logged out" link found or other error occurred:',
     //   error
