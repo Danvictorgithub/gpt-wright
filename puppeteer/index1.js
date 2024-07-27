@@ -20,8 +20,11 @@ async function chromiumInit() {
   try {
     if (!browser) {
       console.log("Launching Chromium");
-      // browser = await puppeteer.launch({ headless: false });
-      browser = await puppeteer.launch();
+      if (process.env.HEADLESS == "true") {
+        browser = await puppeteer.launch({ headless: false });
+      } else {
+        browser = await puppeteer.launch();
+      }
     }
   } catch {
     numErr++;
