@@ -16,58 +16,67 @@ let conversations = {};
 let requestQueues = {};
 
 async function chromiumInit() {
-  if (!browser) {
-    console.log("Launching Chromium");
-    // browser = await puppeteer.launch({ headless: false });
-    browser = await puppeteer.launch();
+  try {
+    if (!browser) {
+      console.log("Launching Chromium");
+      // browser = await puppeteer.launch({ headless: false });
+      browser = await puppeteer.launch();
+    }
+  } catch {
+    console.log("Failed to launch re-run browser");
+    chromiumInit();
   }
 }
 
 async function playWrightInit(chatId) {
-  if (conversations[chatId] && conversations[chatId].page) {
-    console.log(`Reusing existing page for chat ${chatId}`);
-    return;
-  }
+  try {
+    if (conversations[chatId] && conversations[chatId].page) {
+      console.log(`Reusing existing page for chat ${chatId}`);
+      return;
+    }
 
-  console.log(`Creating new page for chat ${chatId}`);
-  const page = await browser.newPage();
+    console.log(`Creating new page for chat ${chatId}`);
+    const page = await browser.newPage();
 
-  await page.goto("https://www.chatgpt.com").catch(async (err) => {
-    console.log("Re Run");
-    await page.close();
-    await playWrightInit(chatId);
-  });
-
-  await stayLoggedOut(page);
-
-  const checkContent = await page.$("text=" + "Get started");
-  if (checkContent) {
-    console.log("Re run");
-    return await playWrightInit(chatId);
-  }
-  const checkContent2 = await page.$("text=" + "Welcome back");
-  if (checkContent2) {
-    console.log("Re run");
-    return await playWrightInit(chatId);
-  }
-  conversations[chatId] = {
-    page,
-    conversation: 1,
-    conversationNo: 0,
-    ready: true,
-    lastActivity: Date.now(),
-    timeout: setTimeout(() => {
-      closeChatSession(chatId);
-    }, INACTIVITY_TIMEOUT),
-  };
-  if (process.env.DEBUG == "true") {
-    await page.screenshot({
-      path: `screenshots/init-${chatId}.png`,
+    await page.goto("https://www.chatgpt.com").catch(async (err) => {
+      console.log("Re Run");
+      await page.close();
+      return await playWrightInit(chatId);
     });
-    console.log(`screenshots/init-${chatId}.png`);
+
+    await stayLoggedOut(page);
+
+    const checkContent = await page.$("text=" + "Get started");
+    if (checkContent) {
+      console.log("Re run");
+      return await playWrightInit(chatId);
+    }
+    const checkContent2 = await page.$("text=" + "Welcome back");
+    if (checkContent2) {
+      console.log("Re run");
+      return await playWrightInit(chatId);
+    }
+    conversations[chatId] = {
+      page,
+      conversation: 1,
+      conversationNo: 0,
+      ready: true,
+      lastActivity: Date.now(),
+      timeout: setTimeout(() => {
+        closeChatSession(chatId);
+      }, INACTIVITY_TIMEOUT),
+    };
+    if (process.env.DEBUG == "true") {
+      await page.screenshot({
+        path: `screenshots/init-${chatId}.png`,
+      });
+      console.log(`screenshots/init-${chatId}.png`);
+    }
+    requestQueues[chatId] = Promise.resolve();
+    console.log(`Page is ready for chat ${chatId}`);
+  } catch {
+    playWrightInit(chatId);
   }
-  requestQueues[chatId] = Promise.resolve();
-  console.log(`Page is ready for chat ${chatId}`);
 }
 
 async function closeChatSession(chatId) {
