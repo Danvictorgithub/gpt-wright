@@ -411,14 +411,16 @@ function generateUniqueChatId() {
 }
 
 async function handleGlobalError() {
-  console.log("Err counter: ", numErr);
-  if (numErr > 1) {
-    await browser.close();
-    browser = await puppeteer.launch();
-    conversations = {};
-    requestQueues = {};
-    numErr = 0;
-    console.log("Browser Restart");
+  if (process.env.RESTART_BROWSER == "true") {
+    console.log("Err counter: ", numErr);
+    if (numErr > 1) {
+      await browser.close();
+      browser = await puppeteer.launch();
+      conversations = {};
+      requestQueues = {};
+      numErr = 0;
+      console.log("Browser Restart");
+    }
   }
 }
 
