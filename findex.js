@@ -18,7 +18,7 @@ let requestQueues = {};
 async function firefoxInit() {
   if (!browser) {
     console.log("Launching firefox");
-    browser = await firefox.launch();
+    browser = await firefox.launch({ headless: false });
   }
 }
 

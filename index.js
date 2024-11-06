@@ -18,7 +18,7 @@ let requestQueues = {};
 async function chromiumInit() {
   if (!browser) {
     console.log("Launching Chromium");
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: false });
   }
 }
 

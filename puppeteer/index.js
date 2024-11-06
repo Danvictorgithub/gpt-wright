@@ -2,7 +2,7 @@ const puppeteer = require("puppeteer-extra");
 const stealth = require("puppeteer-extra-plugin-stealth")();
 const dotenv = require("dotenv");
 const express = require("express");
-
+console.log(process.env.HEADLESS);
 dotenv.config();
 puppeteer.use(stealth);
 const INACTIVITY_TIMEOUT =
