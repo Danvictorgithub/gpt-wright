@@ -30,3 +30,6 @@ Applies parallel API calls with each dependent Chat ID to have a 'Queue middlewa
 This process uses ChatGPT no logins prompts which is similar to doing OPEN AI chat_completion API but free (but lacks the ability to fine tune)
 
 Disclaimer: This must be used with caution as abuse on the OpenAI server may result in rate limiting issues based on IPs
+
+### Archive Notice:
+This project is archived because of the lack of support in stealth-plugin in playwright, I would recommend people to use puppeteer instead since it has better support, I saw Ulixee library but I don't want to recreate everything
